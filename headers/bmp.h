@@ -23,5 +23,6 @@ int init_bmp(BMP* bmp, FILE* file);
 int store_bmp(BMP* bmp, FILE* file);
 void destroy_bmp(BMP* bmp);
 int get_row_size(BMP* bmp);
+int is_valid_bmp(BMP* bmp);
 
 #endif

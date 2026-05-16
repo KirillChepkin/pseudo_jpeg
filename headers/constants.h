@@ -1,0 +1,12 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+#define COMPRESS_MODE 0
+#define DECOMPRESS_MODE 1
+
+// error codes
+#define INVALID_FILE_ERROR_CODE -1
+#define MEMORY_ISSUE_ERROR_CODE -2
+#define UNSUPPORTED_INPUT_ERROR_CODE -3
+
+#endif
