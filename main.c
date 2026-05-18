@@ -51,25 +51,33 @@ int main(int argc, char** argv) {
         ERROR_UNSUPPORTED_INPUT(ret, bmp, "Incompatible file\n");
         ERROR_READING_FILE(ret, bmp, "Invalid file fields\n");
 
-        unsigned char* y = malloc(bmp.width * abs(bmp.height));
-        unsigned char* cb = malloc(bmp.width * abs(bmp.height));
-        unsigned char* cr = malloc(bmp.width * abs(bmp.height));
+        int width = bmp.width;
+        int height = abs(bmp.height);
+
+        /* int width = get_padding_size(bmp.width, 8);
+        int height = get_padding_size(abs(bmp.height), 8); */
+
+        unsigned char* y = malloc(width * height);
+        unsigned char* cb = malloc(width * height);
+        unsigned char* cr = malloc(width * height);
         ALLOC_ISSUE(y, bmp, "Error when allocating memory for component y\n");
         ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
         ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
 
-        get_components(&bmp, y, cb, cr);
-        downsample_component(cb, cb, abs(bmp.height), bmp.width);
-        downsample_component(cr, cr, abs(bmp.height), bmp.width);
-        unsigned char* pixel;
+        get_components(&bmp, y, cb, cr, height, width);
+        downsample_component(cb, cb, height, width);
+        downsample_component(cr, cr, height, width);
+        unsigned char* pixel = bmp.pixel;
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {
                 pixel = get_pixel_pointer(&bmp, i, j);
                 pixel[0] = 0;
                 pixel[1] = 0;
-                pixel[2] = cr[RM_INDEX(bmp.width, i, j)];
+                pixel[2] = cr[RM_INDEX(width, i / 2, j / 2)];
             }
         }
+
+
         /* pixel = get_pixel_pointer(&bmp, abs(bmp.height) - 1, bmp.width - 1);
         pixel[0] = 255;
         pixel[1] = 255;

@@ -5,8 +5,8 @@
 #include "bmp.h"
 #include "macros.h"
 
-int get_padding(int x, int d) {
-    
+int get_padding_size(int x, int d) {
+    return x + (d - x % d);
 }
 
 void downsample_component(unsigned char* c, unsigned char* dest, int height, int width) {

@@ -131,7 +131,7 @@ unsigned char* get_pixel_pointer(BMP* bmp, int row, int column) {
     }
 }
 
-void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char* cr) {
+void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char* cr, int height, int width) {
     // extracts the luminance (Y) component from the image
     // bmp is stored in the BGR - blue, gree and red
     unsigned char* pixel;
@@ -144,12 +144,13 @@ void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char
             lum = 16 + (25 * pixel[0] + 129 * pixel[1] + 66 * pixel[3]) / 256;
             chroma_blue = 128 + (112 * pixel[0] - 74 * pixel[1] - 38 * pixel[3]) / 256;
             chroma_red = 128 + ((-18) * pixel[0] - 94 * pixel[1] + 112 * pixel[3]) / 256;
-            y[RM_INDEX(bmp -> width, i, j)] = lum;
-            cb[RM_INDEX(bmp -> width, i, j)] = chroma_blue;
-            cr[RM_INDEX(bmp -> width, i, j)] = chroma_red;
+            y[RM_INDEX(width, i, j)] = lum;
+            cb[RM_INDEX(width, i, j)] = chroma_blue;
+            cr[RM_INDEX(width, i, j)] = chroma_red;
             /* pixel[0] = chroma_blue;
             pixel[1] = 0;
             pixel[2] = 0; */
         }
     }
+    /* for (int i = 0; i < ) */
 }
