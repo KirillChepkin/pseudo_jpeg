@@ -25,4 +25,14 @@
     }\
 }
 
+#define ALLOC_ISSUE(pointer, bmp, text) {\
+    if ((pointer) == NULL) {\
+        destroy_bmp(&bmp);\
+        fprintf(stderr, (text));\
+        return -1;\
+    }\
+}
+
+#define RM_INDEX(width, i, j) ((i) * (width) + j)
+
 #endif

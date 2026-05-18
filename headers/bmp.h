@@ -24,5 +24,8 @@ int store_bmp(BMP* bmp, FILE* file);
 void destroy_bmp(BMP* bmp);
 int get_row_size(BMP* bmp);
 int is_valid_bmp(BMP* bmp);
+unsigned char* get_pixel_pointer(BMP* bmp, int row, int column);
+void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char* cr);
+void cut_resolution(BMP* bmp);
 
 #endif

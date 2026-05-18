@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "bmp.h"
+#include "compression.h"
 #include "constants.h"
 #include "macros.h"
 
@@ -33,31 +35,49 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Input file does not exist\n");
         return -1;
     }
-    /* int row_size = get_row_size(&bmp);
-    for (int i = row_size * 10; i < row_size * 10 + 3 * bmp.width; i += 3) {
-        bmp.pixel[i] = 255;
-        bmp.pixel[i + 1] = 255;
-        bmp.pixel[i + 2] = 255;
-    } */
 
     if (mode == COMPRESS_MODE) {
         ret = init_bmp(&bmp, filein);
         fclose(filein);
         ERROR_READING_FILE(ret, bmp, "Error when reading file\n");
         MEMORY_ISSUE(ret, bmp);
-        /* printf("%d %d %d %d %d %d %d\n", bmp.bit_depth,
+        printf("depth: %d\nheader_size: %d\nwidth: %d\nheight: %d\ncolor table size: %d\n",
+                                bmp.bit_depth,
                                 bmp.info_header_size,
                                 bmp.width,
                                 bmp.height,
-                                bmp.offset,
-                                bmp.color_tab_size,
-                                (*((int*)(bmp.file_header + 6))));
-        printf("%c %c %d\n", bmp.file_header[0], bmp.file_header[1], (*((int*)(bmp.file_header + 6)))); */
+                                bmp.color_tab_size);
         ret = is_valid_bmp(&bmp);
-        /* printf("%d\n", ret); */
         ERROR_UNSUPPORTED_INPUT(ret, bmp, "Incompatible file\n");
         ERROR_READING_FILE(ret, bmp, "Invalid file fields\n");
+
+        unsigned char* y = malloc(bmp.width * abs(bmp.height));
+        unsigned char* cb = malloc(bmp.width * abs(bmp.height));
+        unsigned char* cr = malloc(bmp.width * abs(bmp.height));
+        ALLOC_ISSUE(y, bmp, "Error when allocating memory for component y\n");
+        ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
+        ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
+
+        get_components(&bmp, y, cb, cr);
+        downsample_component(cb, cb, abs(bmp.height), bmp.width);
+        downsample_component(cr, cr, abs(bmp.height), bmp.width);
+        unsigned char* pixel;
+        for (int i = 0; i < abs(bmp.height); i++) {
+            for (int j = 0; j < bmp.width; j++) {
+                pixel = get_pixel_pointer(&bmp, i, j);
+                pixel[0] = 0;
+                pixel[1] = 0;
+                pixel[2] = cr[RM_INDEX(bmp.width, i, j)];
+            }
+        }
+        /* pixel = get_pixel_pointer(&bmp, abs(bmp.height) - 1, bmp.width - 1);
+        pixel[0] = 255;
+        pixel[1] = 255;
+        pixel[2] = 255; */
         ret = store_bmp(&bmp, fileout);
+        free(y);
+        free(cr);
+        free(cb);
         fclose(fileout);
         destroy_bmp(&bmp);
     }

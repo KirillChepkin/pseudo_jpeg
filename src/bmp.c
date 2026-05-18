@@ -4,8 +4,7 @@
 
 #include "bmp.h"
 #include "constants.h"
-
-#define N 1000000
+#include "macros.h"
 
 int init_bmp(BMP* bmp, FILE* file) {
     int ret;
@@ -117,4 +116,40 @@ int is_valid_bmp(BMP* bmp) {
         return INVALID_FILE_ERROR_CODE;
     }
     return 0;
+}
+
+unsigned char* get_pixel_pointer(BMP* bmp, int row, int column) {
+    // calculates the pixel index from matrix indices
+    if (bmp -> width <= column || abs(bmp -> height) <= row) {
+        return NULL;
+    }
+    if (bmp -> height < 0) {
+        return bmp -> pixel + row * get_row_size(bmp) + (bmp -> bit_depth / 8) * column;
+    }
+    else {
+        return bmp -> pixel + (bmp -> height - row - 1) * get_row_size(bmp) + (bmp -> bit_depth / 8) * column;
+    }
+}
+
+void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char* cr) {
+    // extracts the luminance (Y) component from the image
+    // bmp is stored in the BGR - blue, gree and red
+    unsigned char* pixel;
+    unsigned char lum;
+    unsigned char chroma_blue;
+    unsigned char chroma_red;
+    for (int i = 0; i < abs(bmp -> height); i++) {
+        for (int j = 0; j < bmp -> width; j++) {
+            pixel = get_pixel_pointer(bmp, i, j);
+            lum = 16 + (25 * pixel[0] + 129 * pixel[1] + 66 * pixel[3]) / 256;
+            chroma_blue = 128 + (112 * pixel[0] - 74 * pixel[1] - 38 * pixel[3]) / 256;
+            chroma_red = 128 + ((-18) * pixel[0] - 94 * pixel[1] + 112 * pixel[3]) / 256;
+            y[RM_INDEX(bmp -> width, i, j)] = lum;
+            cb[RM_INDEX(bmp -> width, i, j)] = chroma_blue;
+            cr[RM_INDEX(bmp -> width, i, j)] = chroma_red;
+            /* pixel[0] = chroma_blue;
+            pixel[1] = 0;
+            pixel[2] = 0; */
+        }
+    }
 }
