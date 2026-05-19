@@ -51,34 +51,59 @@ int main(int argc, char** argv) {
         ERROR_UNSUPPORTED_INPUT(ret, bmp, "Incompatible file\n");
         ERROR_READING_FILE(ret, bmp, "Invalid file fields\n");
 
-        int width = bmp.width;
-        int height = abs(bmp.height);
+        /* int new_width = bmp.width;
+        int new_height = abs(bmp.height); */
 
-        /* int width = get_padding_size(bmp.width, 8);
-        int height = get_padding_size(abs(bmp.height), 8); */
+        // width and height  already include the padding
+        
+        int new_width = get_padding_size(bmp.width, 16);
+        int new_height = get_padding_size(abs(bmp.height), 16);
 
-        unsigned char* y = malloc(width * height);
-        unsigned char* cb = malloc(width * height);
-        unsigned char* cr = malloc(width * height);
+        printf("\nnew width %d new height: %d\n", new_width, new_height);
+
+        unsigned char* y = malloc(new_width * new_height);
+        unsigned char* cb = malloc(new_width * new_height);
+        unsigned char* cr = malloc(new_width * new_height);
         ALLOC_ISSUE(y, bmp, "Error when allocating memory for component y\n");
         ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
         ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
 
-        get_components(&bmp, y, cb, cr, height, width);
-        downsample_component(cb, cb, height, width);
-        downsample_component(cr, cr, height, width);
+        get_components(&bmp, y, cb, cr, new_height, new_width);
+
+        // all obtained components get padded before downsampling
+
+        pad_component(y, abs(bmp.height), bmp.width, new_height, new_width);
+        pad_component(cr, abs(bmp.height), bmp.width, new_height, new_width);
+        pad_component(cb, abs(bmp.height), bmp.width, new_height, new_width);
+
+        downsample_component(cb, cb, new_height, new_width);
+        downsample_component(cr, cr, new_height, new_width);
+
         unsigned char* pixel = bmp.pixel;
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {
                 pixel = get_pixel_pointer(&bmp, i, j);
                 pixel[0] = 0;
                 pixel[1] = 0;
-                pixel[2] = cr[RM_INDEX(width, i / 2, j / 2)];
+                pixel[2] = cr[RM_INDEX(new_width, i / 2, j / 2)];
             }
         }
 
+        /* for (int i = abs(bmp.height) - 8; i < new_height; i++) {
+            printf("%d: %d\n", i, cb[RM_INDEX(new_width, i, 0)]);
+        }
+        printf("------\n");
+        for (int i = bmp.width - 8; i < new_width; i++) {
+            printf("%d: %d\n", i, cb[RM_INDEX(new_width, 0, i)]);
+        }
+        printf("------\n");
+        for (int i = bmp.width - 8; i < new_width; i++) {
+            printf("%d: %d\n", i, cb[RM_INDEX(new_width, new_height, i)]);
+        } */
 
-        /* pixel = get_pixel_pointer(&bmp, abs(bmp.height) - 1, bmp.width - 1);
+
+
+        /* pixel = get_pixel_pointer(&bmp, abs(bmp.height) / 2 - 1, bmp.width / 2 - 1);
         pixel[0] = 255;
         pixel[1] = 255;
         pixel[2] = 255; */

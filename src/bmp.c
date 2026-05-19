@@ -107,7 +107,8 @@ int get_row_size(BMP* bmp) {
 }
 
 int is_valid_bmp(BMP* bmp) {
-    if ((bmp -> bit_depth != 24 && bmp -> bit_depth != 32) || bmp -> color_tab_size != 0) {
+    if ((bmp -> bit_depth != 24 && bmp -> bit_depth != 32) || bmp -> color_tab_size != 0 ||
+        bmp -> width < 8 || bmp -> width < 8) {
         return UNSUPPORTED_INPUT_ERROR_CODE;
     }
     if (bmp -> file_header[0] != 'B' || bmp -> file_header[1] != 'M' ||
@@ -134,6 +135,7 @@ unsigned char* get_pixel_pointer(BMP* bmp, int row, int column) {
 void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char* cr, int height, int width) {
     // extracts the luminance (Y) component from the image
     // bmp is stored in the BGR - blue, gree and red
+    // the resulting image has (height % 8 and width % 8) >= (bmp -> height and bmp -> width)
     unsigned char* pixel;
     unsigned char lum;
     unsigned char chroma_blue;
