@@ -3,11 +3,23 @@
 #include <stdlib.h>
 
 #include "bmp.h"
-#include "compression.h"
+#include "headers/compression.h"
 #include "constants.h"
 #include "macros.h"
 
 #define N 1000
+
+double cosine[8][8];
+double block[8][8];
+double freq[8][8];
+double Q[8][8] = {{16, 11, 10, 16, 24, 40, 51, 61},
+                    {12, 12, 14, 19, 26, 58, 60, 55},
+                    {14, 13, 16, 24, 40, 57, 69, 56},
+                    {14, 17, 22, 29, 51, 87, 80, 62},
+                    {18, 22, 37, 56, 68, 109, 103, 77},
+                    {24, 35, 55, 64, 81, 104, 113, 92},
+                    {49, 64, 78, 87, 103, 121, 120, 101},
+                    {72, 92, 95, 98, 112, 100, 103, 99}};
 
 int main(int argc, char** argv) {
     int mode;
@@ -54,7 +66,7 @@ int main(int argc, char** argv) {
         /* int new_width = bmp.width;
         int new_height = abs(bmp.height); */
 
-        // width and height  already include the padding
+        // width and height are computed to include the padding
         
         int new_width = get_padding_size(bmp.width, 16);
         int new_height = get_padding_size(abs(bmp.height), 16);
@@ -68,22 +80,27 @@ int main(int argc, char** argv) {
         ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
         ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
 
+        // transforms the color space of the image
         get_components(&bmp, y, cb, cr, new_height, new_width);
 
         // all obtained components get padded before downsampling
-
         pad_component(y, abs(bmp.height), bmp.width, new_height, new_width);
         pad_component(cr, abs(bmp.height), bmp.width, new_height, new_width);
         pad_component(cb, abs(bmp.height), bmp.width, new_height, new_width);
 
+        // downsampling of the components
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
-        double block[8][8];
+        // obtaining the block and deriving frequencies
         normalize_block(y, block, new_height, new_width, new_height - 8, new_width - 8);
+        precompute_cosines(cosine);
+        compute_block_DCT(block, cosine, freq);
+        quantize_block(freq, Q);
+        round_block(freq);
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
-                printf("%3.2f ", block[i][j]);
+                printf("%4d ", (char)freq[i][j]);
             }
             printf("\n");
         }
