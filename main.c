@@ -79,13 +79,22 @@ int main(int argc, char** argv) {
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
+        double block[8][8];
+        normalize_block(y, block, new_height, new_width, new_height - 8, new_width - 8);
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                printf("%3.2f ", block[i][j]);
+            }
+            printf("\n");
+        }
+
         unsigned char* pixel = bmp.pixel;
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {
                 pixel = get_pixel_pointer(&bmp, i, j);
-                pixel[0] = 0;
-                pixel[1] = 0;
-                pixel[2] = cr[RM_INDEX(new_width, i / 2, j / 2)];
+                pixel[0] = y[RM_INDEX(new_width, i, j)];
+                pixel[1] = y[RM_INDEX(new_width, i, j)];
+                pixel[2] = y[RM_INDEX(new_width, i, j)];
             }
         }
 

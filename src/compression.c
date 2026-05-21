@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "bmp.h"
 #include "macros.h"
 
 int get_padding_size(int x, int d) {
     // computes a number which is >= x and % d
+
     if (x % d == 0) {
         return x;
     }
@@ -43,6 +45,32 @@ void downsample_component(unsigned char* c, unsigned char* dest, int height, int
                                            c[RM_INDEX(width, i * 2, j * 2 + 1)] +
                                            c[RM_INDEX(width, i * 2 + 1, j * 2)] +
                                            c[RM_INDEX(width, i * 2 + 1, j * 2 + 1)]) / 4;
+        }
+    }
+}
+
+void compute_block_DCT(double block[8][8], double freq[8][8]) {
+    
+}
+
+void normalize_block(unsigned char* matrix, double block[8][8], int matrix_height, int matrix_width,
+    int row,
+    int column) {
+    // normalizes matrix's 8*8 block values to be around zero,
+    // converts them to double and writes into the double block[8][8].
+    // block size is hardcoded to be 8*8.
+    // each 8*8 block of the original image will be processed separately
+    // to decrease the memory consumption because sizeof(double) == 8 on most systems
+    // row and column are indices of the block's top-left corner
+
+    printf("%d %d %d %d\n", row, column, matrix_height, matrix_width);
+    if (row + 8 > matrix_height || column + 8 > matrix_width || row < 0 || column < 0) {
+        assert(1 == 2);
+    }
+    for (int i = row; i < row + 8; i++) {
+        for (int j = column; j < column + 8; j++) {
+            block[i - row][j - column] = ((double)matrix[RM_INDEX(matrix_width, i, j)] - 128.0);
+            /* printf("%d ", matrix[RM_INDEX(matrix_width, i, j)]); */
         }
     }
 }

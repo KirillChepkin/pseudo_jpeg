@@ -7,6 +7,7 @@
 #include "macros.h"
 
 int init_bmp(BMP* bmp, FILE* file) {
+    // reads the .bmp file into a bmp object and allocates memory for file contents
     int ret;
     bmp -> info_header = NULL;
     bmp -> color_tab = NULL;
@@ -70,6 +71,7 @@ int init_bmp(BMP* bmp, FILE* file) {
 }
 
 int store_bmp(BMP* bmp, FILE* file) {
+    // writes a bmp object into memory in .bmp file format
     int ret;
     ret = fwrite(bmp -> file_header, 1, 14, file);
     if (ret != 14) {
@@ -91,6 +93,7 @@ int store_bmp(BMP* bmp, FILE* file) {
 }
 
 void destroy_bmp(BMP* bmp) {
+    // frees memory allocated for the bmp object
     if (bmp -> info_header != NULL) {
         free(bmp -> info_header);
     }
@@ -103,12 +106,14 @@ void destroy_bmp(BMP* bmp) {
 }
 
 int get_row_size(BMP* bmp) {
+    // computes the row size of the matrix which stores original pixel data considering padding
     return ((bmp -> width * bmp -> bit_depth + 31) / 32) * 4;
 }
 
 int is_valid_bmp(BMP* bmp) {
+    // checks if a program will be able to compress the already read file
     if ((bmp -> bit_depth != 24 && bmp -> bit_depth != 32) || bmp -> color_tab_size != 0 ||
-        bmp -> width < 8 || bmp -> width < 8) {
+        bmp -> width < 16 || bmp -> width < 8) {
         return UNSUPPORTED_INPUT_ERROR_CODE;
     }
     if (bmp -> file_header[0] != 'B' || bmp -> file_header[1] != 'M' ||
