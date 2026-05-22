@@ -76,6 +76,9 @@ int main(int argc, char** argv) {
         unsigned char* y = malloc(new_width * new_height);
         unsigned char* cb = malloc(new_width * new_height);
         unsigned char* cr = malloc(new_width * new_height);
+        char* result_y = malloc(new_width * new_height);
+        char* result_cb = malloc(new_width * new_height);
+        char* result_cr = malloc(new_width * new_height);
         ALLOC_ISSUE(y, bmp, "Error when allocating memory for component y\n");
         ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
         ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
@@ -88,23 +91,14 @@ int main(int argc, char** argv) {
         pad_component(cr, abs(bmp.height), bmp.width, new_height, new_width);
         pad_component(cb, abs(bmp.height), bmp.width, new_height, new_width);
 
-        // downsampling of the components
+        // downsampling the components
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
-        // obtaining the block and deriving frequencies
-        normalize_block(y, block, new_height, new_width, new_height - 8, new_width - 8);
-        precompute_cosines(cosine);
-        compute_block_DCT(block, cosine, freq);
-        quantize_block(freq, Q);
-        round_block(freq);
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                printf("%4d ", (char)freq[i][j]);
-            }
-            printf("\n");
-        }
-
+        get_encoded_component(y, new_height, new_width, result_y);
+        get_encoded_component(cb, new_height, new_width, result_cb);
+        get_encoded_component(cr, new_height, new_width, result_cr);
+        
         unsigned char* pixel = bmp.pixel;
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {

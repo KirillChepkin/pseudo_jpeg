@@ -6,6 +6,7 @@
 
 #include "bmp.h"
 #include "macros.h"
+#include "compression.h"
 
 int get_padding_size(int x, int d) {
     // computes a number which is >= x and % d
@@ -60,14 +61,12 @@ void normalize_block(unsigned char* matrix, double block[8][8], int matrix_heigh
     // to decrease the memory consumption because sizeof(double) == 8 on most systems
     // row and column are indices of the block's top-left corner
 
-    /* printf("%d %d %d %d\n", row, column, matrix_height, matrix_width); */
     if (row + 8 > matrix_height || column + 8 > matrix_width || row < 0 || column < 0) {
         assert(1 == 2);
     }
     for (int i = row; i < row + 8; i++) {
         for (int j = column; j < column + 8; j++) {
             block[i - row][j - column] = ((double)matrix[RM_INDEX(matrix_width, i, j)] - 128.0);
-            /* printf("%d ", matrix[RM_INDEX(matrix_width, i, j)]); */
         }
     }
 }
@@ -128,20 +127,97 @@ void round_block(double freq[8][8]) {
     }
 }
 
-/* double block[8][8] = {{-76, -73, -67, -62, -58, -67, -64, -55},
-                      {-65, -69, -73, -38, -19, -43, -59, -56},
-                      {-66, -69, -60, -15, 16, -24, -62, -55},
-                      {-65, -70, -57, -6, 26, -22, -58, -59},
-                      {-61, -67, -60, -24, -2, -40, -60, -58},
-                      {-49, -63, -68, -58, -51, -60, -70, -53},
-                      {-43, -57, -64, -69, -73, -67, -63, -45},
-                      {-41, -49, -59, -60, -63, -52, -50, -34}};
-double Q[8][8] = {{16, 11, 10, 16, 24, 40, 51, 61},
-                  {12, 12, 14, 19, 26, 58, 60, 55},
-                  {14, 13, 16, 24, 40, 57, 69, 56},
-                  {14, 17, 22, 29, 51, 87, 80, 62},
-                  {18, 22, 37, 56, 68, 109, 103, 77},
-                  {24, 35, 55, 64, 81, 104, 113, 92},
-                  {49, 64, 78, 87, 103, 121, 120, 101},
-                  {72, 92, 95, 98, 112, 100, 103, 99}}; */
-double freq[8][8];
+int zig_zag_RLE(double freq[8][8], char* result) {
+    // converts the frequency to char and stores coefficients ignoring zeros at the end
+    // returns the number of coefficients stored in result
+    static char rle[64] = {};
+    int c = 0;
+    int i;
+    char cur;
+    int zeroes = 0;
+    for (int d = 0; d < 15; d++) {
+        if (d >= 8) {
+            i = 7;
+        }
+        else {
+            i = d;
+        }
+        if (d % 2 == 0) {
+            while (i >= 0 && (d - i) < 8) {
+                cur = (char)freq[i][d - i];
+                rle[c] = cur;
+                c++;
+                i--;
+            }
+        }
+        else {
+            while (i >= 0 && (d - i) < 8) {
+                cur = (char)freq[d - i][i];
+                rle[c] = cur;
+                c++;
+                i--;
+            }
+        }
+    }
+    for (int i = 63; i >= 0; i--) {
+        if (rle[i] == 0) {
+            zeroes++;
+        }
+        else {
+            break;
+        }
+    }
+    zeroes = 64 - zeroes;
+    c = 0;
+    /* printf("%d\n", zeroes); */
+    // 127 will serve as the end of block value
+    // 127 is very unlikely to appear among coefficients
+    while (zeroes != c) {
+        result[c] = rle[c];
+        if (result[c] == 127) {
+            result[c]--;
+        }
+        c++;
+    }
+    return c;
+}
+
+int get_encoded_component(unsigned char* c, int height, int width, char* result) {
+    static double block[8][8];
+    static double freq[8][8];
+    static double cosine[8][8];
+    static double Q[8][8] = {{16, 11, 10, 16, 24, 40, 51, 61},
+                             {12, 12, 14, 19, 26, 58, 60, 55},
+                             {14, 13, 16, 24, 40, 57, 69, 56},
+                             {14, 17, 22, 29, 51, 87, 80, 62},
+                             {18, 22, 37, 56, 68, 109, 103, 77},
+                             {24, 35, 55, 64, 81, 104, 113, 92},
+                             {49, 64, 78, 87, 103, 121, 120, 101},
+                             {72, 92, 95, 98, 112, 100, 103, 99}};
+    int num = 0;
+    precompute_cosines(cosine);
+    for (int i = 0; i <= height - 8; i += 8) {
+        for (int j = 0; j <= width - 8; j += 8) {
+            normalize_block(c, block, height, width, i, j);
+            compute_block_DCT(block, cosine, freq);
+            quantize_block(freq, Q);
+            round_block(freq);
+            num += zig_zag_RLE(freq, result + num);
+            result[num] = 127;
+            num++;
+            // 127 marks the end of a block
+            /* for (int k = 0; k < 8; k++) {
+                for (int s = 0; s < 8; s++) {
+                    printf("%3d ", (char)freq[k][s]);
+                }
+                printf("\n");
+            }
+            printf("--------\n"); */
+        }
+    }
+    /* for (int i = 0; i < num; i++) {
+        printf("%d ", result[i]);
+    }
+    printf("\n"); */
+    return num;
+}
