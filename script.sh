@@ -1,2 +1,2 @@
-gcc "main.c" "src/bmp.c" "src/compression.c" -I "headers" -O2 -o main &&
-./main  compress "samples/desert.bmp" "outputs/output.bmp"
+gcc "main.c" src/*.c -I "headers" -O2 -o pj &&
+./pj  compress "samples/sample.bmp" "outputs/output.pj"

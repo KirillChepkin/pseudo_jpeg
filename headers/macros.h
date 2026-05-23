@@ -9,7 +9,7 @@
     }\
 }
 
-#define ERROR_READING_FILE(ret, bmp, text) {\
+#define FILE_ERROR(ret, bmp, text) {\
     if ((ret) == INVALID_FILE_ERROR_CODE) {\
         fprintf(stderr, (text));\
         destroy_bmp(&bmp);\

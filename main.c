@@ -6,6 +6,7 @@
 #include "headers/compression.h"
 #include "constants.h"
 #include "macros.h"
+#include <pj.h>
 
 #define N 1000
 
@@ -25,6 +26,7 @@ int main(int argc, char** argv) {
     int mode;
     int ret;
     BMP bmp;
+    PJ pj;
     if (argc < 4) {
         fprintf(stderr, "too few arguments\n");
         return -1;
@@ -51,7 +53,7 @@ int main(int argc, char** argv) {
     if (mode == COMPRESS_MODE) {
         ret = init_bmp(&bmp, filein);
         fclose(filein);
-        ERROR_READING_FILE(ret, bmp, "Error when reading file\n");
+        FILE_ERROR(ret, bmp, "Error when reading file\n");
         MEMORY_ISSUE(ret, bmp);
         printf("depth: %d\nheader_size: %d\nwidth: %d\nheight: %d\ncolor table size: %d\n",
                                 bmp.bit_depth,
@@ -61,7 +63,7 @@ int main(int argc, char** argv) {
                                 bmp.color_tab_size);
         ret = is_valid_bmp(&bmp);
         ERROR_UNSUPPORTED_INPUT(ret, bmp, "Incompatible file\n");
-        ERROR_READING_FILE(ret, bmp, "Invalid file fields\n");
+        FILE_ERROR(ret, bmp, "Invalid file fields\n");
 
         /* int new_width = bmp.width;
         int new_height = abs(bmp.height); */
@@ -82,6 +84,9 @@ int main(int argc, char** argv) {
         ALLOC_ISSUE(y, bmp, "Error when allocating memory for component y\n");
         ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
         ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
+        ALLOC_ISSUE(result_y, bmp, "Error when allocating memory for component result_y\n");
+        ALLOC_ISSUE(result_cb, bmp, "Error when allocating memory for component result_cb\n");
+        ALLOC_ISSUE(result_cr, bmp, "Error when allocating memory for component result_cr\n");
 
         // transforms the color space of the image
         get_components(&bmp, y, cb, cr, new_height, new_width);
@@ -95,11 +100,25 @@ int main(int argc, char** argv) {
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
-        get_encoded_component(y, new_height, new_width, result_y);
-        get_encoded_component(cb, new_height, new_width, result_cb);
-        get_encoded_component(cr, new_height, new_width, result_cr);
+        int encoded_y_size = get_encoded_component(y, new_height, new_width, result_y);
+        int encoded_cb_size = get_encoded_component(cb, new_height, new_width, result_cb);
+        int encoded_cr_size = get_encoded_component(cr, new_height, new_width, result_cr);
+
+        printf("original size: %d\n", 3 * bmp.width * abs(bmp.height));
+        printf("encoded component sizes: y: %d cb: %d cr: %d, total: %d\n",
+            encoded_y_size, encoded_cb_size, encoded_cr_size,
+            encoded_y_size + encoded_cb_size + encoded_cr_size);
+
+        create_pj(&pj, encoded_y_size, encoded_cb_size, encoded_cr_size,
+                result_y, result_cb, result_cr, bmp.height, bmp.width,
+                new_height, new_width);
+        ret = write_pj(&pj, fileout);
+
+        /* for (int i = 0; i < 100; i++) {
+            printf("%d\n", result_cb[i]);
+        } */
         
-        unsigned char* pixel = bmp.pixel;
+        /* unsigned char* pixel = bmp.pixel;
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {
                 pixel = get_pixel_pointer(&bmp, i, j);
@@ -108,29 +127,13 @@ int main(int argc, char** argv) {
                 pixel[2] = y[RM_INDEX(new_width, i, j)];
             }
         }
-
-        /* for (int i = abs(bmp.height) - 8; i < new_height; i++) {
-            printf("%d: %d\n", i, cb[RM_INDEX(new_width, i, 0)]);
-        }
-        printf("------\n");
-        for (int i = bmp.width - 8; i < new_width; i++) {
-            printf("%d: %d\n", i, cb[RM_INDEX(new_width, 0, i)]);
-        }
-        printf("------\n");
-        for (int i = bmp.width - 8; i < new_width; i++) {
-            printf("%d: %d\n", i, cb[RM_INDEX(new_width, new_height, i)]);
-        } */
-
-
-
-        /* pixel = get_pixel_pointer(&bmp, abs(bmp.height) / 2 - 1, bmp.width / 2 - 1);
-        pixel[0] = 255;
-        pixel[1] = 255;
-        pixel[2] = 255; */
-        ret = store_bmp(&bmp, fileout);
+        ret = store_bmp(&bmp, fileout); */
         free(y);
         free(cr);
         free(cb);
+        free(result_y);
+        free(result_cr);
+        free(result_cb);
         fclose(fileout);
         destroy_bmp(&bmp);
     }
