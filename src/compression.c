@@ -182,7 +182,10 @@ int zig_zag_RLE(double freq[8][8], char* result) {
     return c;
 }
 
-int get_encoded_component(unsigned char* c, int height, int width, char* result) {
+int get_encoded_component(unsigned char* c, int height, int width, char* result, int d) {
+    // heighth and width are provided for the component before downsampling.
+    // d is the factor by which the resolution was divided during downsampling
+    // height and width are supposed to be divisible by 16
     static double block[8][8];
     static double freq[8][8];
     static double cosine[8][8];
@@ -196,8 +199,8 @@ int get_encoded_component(unsigned char* c, int height, int width, char* result)
                              {72, 92, 95, 98, 112, 100, 103, 99}};
     int num = 0;
     precompute_cosines(cosine);
-    for (int i = 0; i <= height - 8; i += 8) {
-        for (int j = 0; j <= width - 8; j += 8) {
+    for (int i = 0; i <= (height / d) - 8; i += 8) {
+        for (int j = 0; j <= (width / d) - 8; j += 8) {
             normalize_block(c, block, height, width, i, j);
             compute_block_DCT(block, cosine, freq);
             quantize_block(freq, Q);

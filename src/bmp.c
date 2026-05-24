@@ -94,15 +94,9 @@ int store_bmp(BMP* bmp, FILE* file) {
 
 void destroy_bmp(BMP* bmp) {
     // frees memory allocated for the bmp object
-    if (bmp -> info_header != NULL) {
-        free(bmp -> info_header);
-    }
-    if (bmp -> color_tab != NULL) {
-        free(bmp -> color_tab);
-    }
-    if (bmp -> pixel != NULL) {
-        free(bmp -> pixel);
-    }
+    free(bmp -> info_header);
+    free(bmp -> color_tab);
+    free(bmp -> pixel);
 }
 
 int get_row_size(BMP* bmp) {

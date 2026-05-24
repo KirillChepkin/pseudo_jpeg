@@ -12,6 +12,6 @@ void compute_block_DCT(double block[8][8], double cosine[8][8], double freq[8][8
 void quantize_block(double freq[8][8], double Q[8][8]);
 void round_block(double freq[8][8]);
 int zig_zag_RLE(double freq[8][8], char* result);
-int get_encoded_component(unsigned char* c, int height, int width, char* result);
+int get_encoded_component(unsigned char* c, int height, int width, char* result, int d);
 
 #endif

@@ -6,9 +6,8 @@
 #include "headers/compression.h"
 #include "constants.h"
 #include "macros.h"
-#include <pj.h>
-
-#define N 1000
+#include "pj.h"
+#include "headers/memory.h"
 
 double cosine[8][8];
 double block[8][8];
@@ -25,8 +24,6 @@ double Q[8][8] = {{16, 11, 10, 16, 24, 40, 51, 61},
 int main(int argc, char** argv) {
     int mode;
     int ret;
-    BMP bmp;
-    PJ pj;
     if (argc < 4) {
         fprintf(stderr, "too few arguments\n");
         return -1;
@@ -43,18 +40,35 @@ int main(int argc, char** argv) {
     }
     char* filename_in = argv[2];
     char* filename_out = argv[3];
-    FILE* filein = fopen(filename_in, "rb");
-    FILE* fileout = fopen(filename_out, "wb");
-    if (filein == NULL) {
-        fprintf(stderr, "Input file does not exist\n");
-        return -1;
-    }
 
     if (mode == COMPRESS_MODE) {
+        printf("%s -> %s\n", filename_in, filename_out);
+        BMP bmp;
+        PJ pj;
+        MEM mem;
+        FILE* filein = fopen(filename_in, "rb");
+        FILE* fileout = fopen(filename_out, "wb");
+        if (filein == NULL) {
+            fprintf(stderr, "Input file does not exist\n");
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
         ret = init_bmp(&bmp, filein);
-        fclose(filein);
-        FILE_ERROR(ret, bmp, "Error when reading file\n");
-        MEMORY_ISSUE(ret, bmp);
+        if (ret == INVALID_FILE_ERROR_CODE) {
+            printf("the file provided is invalid\n");
+            destroy_bmp(&bmp);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
+        if (ret == MEMORY_ISSUE_ERROR_CODE) {
+            printf("failed to allocate memory for the input file\n");
+            destroy_bmp(&bmp);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
         printf("depth: %d\nheader_size: %d\nwidth: %d\nheight: %d\ncolor table size: %d\n",
                                 bmp.bit_depth,
                                 bmp.info_header_size,
@@ -62,8 +76,21 @@ int main(int argc, char** argv) {
                                 bmp.height,
                                 bmp.color_tab_size);
         ret = is_valid_bmp(&bmp);
-        ERROR_UNSUPPORTED_INPUT(ret, bmp, "Incompatible file\n");
-        FILE_ERROR(ret, bmp, "Invalid file fields\n");
+        if (ret == UNSUPPORTED_INPUT_ERROR_CODE) {
+            printf("the probided bmp is impossible to process\n");
+            destroy_bmp(&bmp);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
+        if (ret == INVALID_FILE_ERROR_CODE) {
+            printf("the file provided is invalid\n");
+            destroy_bmp(&bmp);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
+        
 
         /* int new_width = bmp.width;
         int new_height = abs(bmp.height); */
@@ -78,15 +105,18 @@ int main(int argc, char** argv) {
         unsigned char* y = malloc(new_width * new_height);
         unsigned char* cb = malloc(new_width * new_height);
         unsigned char* cr = malloc(new_width * new_height);
-        char* result_y = malloc(new_width * new_height);
-        char* result_cb = malloc(new_width * new_height);
-        char* result_cr = malloc(new_width * new_height);
-        ALLOC_ISSUE(y, bmp, "Error when allocating memory for component y\n");
-        ALLOC_ISSUE(cb, bmp, "Error when allocating memory for component cb\n");
-        ALLOC_ISSUE(cr, bmp, "Error when allocating memory for component cr\n");
-        ALLOC_ISSUE(result_y, bmp, "Error when allocating memory for component result_y\n");
-        ALLOC_ISSUE(result_cb, bmp, "Error when allocating memory for component result_cb\n");
-        ALLOC_ISSUE(result_cr, bmp, "Error when allocating memory for component result_cr\n");
+        append_pointer(&mem, y);
+        append_pointer(&mem, cb);
+        append_pointer(&mem, cr);
+
+        if (y == NULL || cb == NULL || cr == NULL) {
+            printf("failed to allocate memory for components\n");
+            free_all(&mem);
+            destroy_bmp(&bmp);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
 
         // transforms the color space of the image
         get_components(&bmp, y, cb, cr, new_height, new_width);
@@ -100,9 +130,41 @@ int main(int argc, char** argv) {
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
-        int encoded_y_size = get_encoded_component(y, new_height, new_width, result_y);
-        int encoded_cb_size = get_encoded_component(cb, new_height, new_width, result_cb);
-        int encoded_cr_size = get_encoded_component(cr, new_height, new_width, result_cr);
+        unsigned char* pixel = bmp.pixel;
+        FILE* file_debug = fopen("outputs/file_debug.bmp", "wb");
+        for (int i = 0; i < abs(bmp.height); i++) {
+            for (int j = 0; j < bmp.width; j++) {
+                pixel = get_pixel_pointer(&bmp, i, j);
+                pixel[0] = 0;
+                pixel[1] = 0;
+                pixel[2] = cr[RM_INDEX(new_width, i, j)];
+            }
+        }
+        ret = store_bmp(&bmp, file_debug);
+        fclose(file_debug);
+
+        free_pointer(&mem, 0);
+        free_pointer(&mem, 1);
+        free_pointer(&mem, 2);
+
+        char* result_y = malloc(new_width * new_height);
+        char* result_cb = malloc(new_width * new_height);
+        char* result_cr = malloc(new_width * new_height);
+        append_pointer(&mem, result_y);
+        append_pointer(&mem, result_cr);
+        append_pointer(&mem, result_cb);
+        if (result_y == NULL || result_cb == NULL || result_cr == NULL) {
+            printf("failed to allocate memory for the encoding results\n");
+            free_all(&mem);
+            destroy_bmp(&bmp);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
+
+        int encoded_y_size = get_encoded_component(y, new_height, new_width, result_y, 1);
+        int encoded_cb_size = get_encoded_component(cb, new_height, new_width, result_cb, 2);
+        int encoded_cr_size = get_encoded_component(cr, new_height, new_width, result_cr, 2);
 
         printf("original size: %d\n", 3 * bmp.width * abs(bmp.height));
         printf("encoded component sizes: y: %d cb: %d cr: %d, total: %d\n",
@@ -114,26 +176,15 @@ int main(int argc, char** argv) {
                 new_height, new_width);
         ret = write_pj(&pj, fileout);
 
+        free_pointer(&mem, 3);
+        free_pointer(&mem, 4);
+        free_pointer(&mem, 5);
+
         /* for (int i = 0; i < 100; i++) {
             printf("%d\n", result_y[i]);
         } */
-        
-        /* unsigned char* pixel = bmp.pixel;
-        for (int i = 0; i < abs(bmp.height); i++) {
-            for (int j = 0; j < bmp.width; j++) {
-                pixel = get_pixel_pointer(&bmp, i, j);
-                pixel[0] = y[RM_INDEX(new_width, i, j)];
-                pixel[1] = y[RM_INDEX(new_width, i, j)];
-                pixel[2] = y[RM_INDEX(new_width, i, j)];
-            }
-        }
-        ret = store_bmp(&bmp, fileout); */
-        free(y);
-        free(cr);
-        free(cb);
-        free(result_y);
-        free(result_cr);
-        free(result_cb);
+
+        fclose(filein);
         fclose(fileout);
         destroy_bmp(&bmp);
     }
