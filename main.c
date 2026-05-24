@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
         ret = write_pj(&pj, fileout);
 
         /* for (int i = 0; i < 100; i++) {
-            printf("%d\n", result_cb[i]);
+            printf("%d\n", result_y[i]);
         } */
         
         /* unsigned char* pixel = bmp.pixel;

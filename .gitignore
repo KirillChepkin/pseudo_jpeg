@@ -4,3 +4,5 @@ main
 test.c
 test
 pj
+src/*.o
+main.o
