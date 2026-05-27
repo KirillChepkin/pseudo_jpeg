@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
-
 #include "bmp.h"
 #include "macros.h"
 #include "compression.h"
+#include "constants.h"
 
 int get_padding_size(int x, int d) {
     // computes a number which is >= x and % d
@@ -102,6 +102,7 @@ double get_coefficient(double block[8][8], double cosine[8][8], int u, int v) {
 
 void compute_block_DCT(double block[8][8], double cosine[8][8], double freq[8][8]) {
     // iterates through all the possible (u, v) frequency pairs and computes the frequency matrix
+    // writing it into freq
     for (int u = 0; u < 8; u++) {
         for (int v = 0; v < 8; v++) {
             freq[u][v] = get_coefficient(block, cosine, u, v);
@@ -123,6 +124,12 @@ void round_block(double freq[8][8]) {
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
             freq[i][j] = round(freq[i][j]);
+            /* if (freq[i][j] > 0) {
+                freq[i][j] = ceil(freq[i][j]);
+            }
+            else {
+                freq[i][j] = floor(freq[i][j]);
+            } */
         }
     }
 }
@@ -189,14 +196,7 @@ int get_encoded_component(unsigned char* c, int height, int width, char* result,
     static double block[8][8];
     static double freq[8][8];
     static double cosine[8][8];
-    static double Q[8][8] = {{16, 11, 10, 16, 24, 40, 51, 61},
-                             {12, 12, 14, 19, 26, 58, 60, 55},
-                             {14, 13, 16, 24, 40, 57, 69, 56},
-                             {14, 17, 22, 29, 51, 87, 80, 62},
-                             {18, 22, 37, 56, 68, 109, 103, 77},
-                             {24, 35, 55, 64, 81, 104, 113, 92},
-                             {49, 64, 78, 87, 103, 121, 120, 101},
-                             {72, 92, 95, 98, 112, 100, 103, 99}};
+    static double Q[8][8] = Q_MATRIX;
     int num = 0;
     precompute_cosines(cosine);
     for (int i = 0; i <= (height / d) - 8; i += 8) {
@@ -208,19 +208,8 @@ int get_encoded_component(unsigned char* c, int height, int width, char* result,
             num += zig_zag_RLE(freq, result + num);
             result[num] = 127;
             num++;
-            // 127 marks the end of a block
-            /* for (int k = 0; k < 8; k++) {
-                for (int s = 0; s < 8; s++) {
-                    printf("%3d ", (char)freq[k][s]);
-                }
-                printf("\n");
-            }
-            printf("--------\n"); */
+            // 127 marks the end of the block
         }
     }
-    /* for (int i = 0; i < num; i++) {
-        printf("%d ", result[i]);
-    }
-    printf("\n"); */
     return num;
 }

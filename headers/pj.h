@@ -2,6 +2,7 @@
 #define PJ_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 typedef struct pseudo_jpeg_file_object_s {
     uint32_t file_size;
@@ -26,5 +27,7 @@ void create_pj(PJ* pj, int size_y, int size_cb, int size_cr, char* y, char* cb, 
                                                                                   int new_height,
                                                                                   int new_width);
 int write_pj(PJ* pj, FILE* fileout);
+int read_pj(PJ* pj, FILE* file);
+void destroy_pj(PJ* pj);
 
 #endif

@@ -1,31 +1,34 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
 #include "bmp.h"
 #include "headers/compression.h"
 #include "constants.h"
 #include "macros.h"
 #include "pj.h"
 #include "headers/memory.h"
+#include "decompression.h"
 
 double cosine[8][8];
 double block[8][8];
 double freq[8][8];
-double Q[8][8] = {{16, 11, 10, 16, 24, 40, 51, 61},
-                    {12, 12, 14, 19, 26, 58, 60, 55},
-                    {14, 13, 16, 24, 40, 57, 69, 56},
-                    {14, 17, 22, 29, 51, 87, 80, 62},
-                    {18, 22, 37, 56, 68, 109, 103, 77},
-                    {24, 35, 55, 64, 81, 104, 113, 92},
-                    {49, 64, 78, 87, 103, 121, 120, 101},
-                    {72, 92, 95, 98, 112, 100, 103, 99}};
+double Q[8][8] = Q_MATRIX;
 
 int main(int argc, char** argv) {
     int mode;
     int ret;
-    if (argc < 4) {
+    if (argc < 2) {
         fprintf(stderr, "too few arguments\n");
+        printf(HELP_MESSAGE);
+        return -1;
+    } 
+    else if (strcmp(argv[1], "--help") == 0) {
+        printf(HELP_MESSAGE); 
+        return 0;
+    }
+    else if (argc < 4) {
+        fprintf(stderr, "too few arguments\n");
+        printf(HELP_MESSAGE);
         return -1;
     }
     else if (strcmp(argv[1], "compress") == 0) {
@@ -36,11 +39,11 @@ int main(int argc, char** argv) {
     }
     else {
         fprintf(stderr, "pj does not support such command\n");
+        printf(HELP_MESSAGE);
         return -1;
     }
     char* filename_in = argv[2];
     char* filename_out = argv[3];
-
     if (mode == COMPRESS_MODE) {
         printf("%s -> %s\n", filename_in, filename_out);
         BMP bmp;
@@ -48,6 +51,7 @@ int main(int argc, char** argv) {
         MEM mem;
         FILE* filein = fopen(filename_in, "rb");
         FILE* fileout = fopen(filename_out, "wb");
+        mem_init(&mem);
         if (filein == NULL) {
             fprintf(stderr, "Input file does not exist\n");
             fclose(filein);
@@ -130,7 +134,7 @@ int main(int argc, char** argv) {
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
-        unsigned char* pixel = bmp.pixel;
+        /* unsigned char* pixel = bmp.pixel;
         FILE* file_debug = fopen("outputs/file_debug.bmp", "wb");
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {
@@ -141,11 +145,7 @@ int main(int argc, char** argv) {
             }
         }
         ret = store_bmp(&bmp, file_debug);
-        fclose(file_debug);
-
-        free_pointer(&mem, 0);
-        free_pointer(&mem, 1);
-        free_pointer(&mem, 2);
+        fclose(file_debug); */
 
         char* result_y = malloc(new_width * new_height);
         char* result_cb = malloc(new_width * new_height);
@@ -154,13 +154,31 @@ int main(int argc, char** argv) {
         append_pointer(&mem, result_cr);
         append_pointer(&mem, result_cb);
         if (result_y == NULL || result_cb == NULL || result_cr == NULL) {
-            printf("failed to allocate memory for the encoding results\n");
+            printf("failed to allocate memory for encoded results\n");
             free_all(&mem);
             destroy_bmp(&bmp);
             fclose(filein);
             fclose(fileout);
             return -1;
         }
+
+        /* precompute_cosines(cosine);
+        normalize_block(y, block, new_height, new_width, 0, 0);
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                printf("%7.2f ", block[i][j] + 128);
+            }
+            printf("\n");
+        }
+        printf("-------\n");
+        compute_block_DCT(block, cosine, freq);
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                printf("%7.2f ", freq[i][j]);
+            }
+            printf("\n");
+        } */
+
 
         int encoded_y_size = get_encoded_component(y, new_height, new_width, result_y, 1);
         int encoded_cb_size = get_encoded_component(cb, new_height, new_width, result_cb, 2);
@@ -176,17 +194,71 @@ int main(int argc, char** argv) {
                 new_height, new_width);
         ret = write_pj(&pj, fileout);
 
-        free_pointer(&mem, 3);
-        free_pointer(&mem, 4);
-        free_pointer(&mem, 5);
-
-        /* for (int i = 0; i < 100; i++) {
-            printf("%d\n", result_y[i]);
-        } */
+        if (ret == INVALID_FILE_ERROR_CODE) {
+            printf("failed to output the compressed\n");
+            free_all(&mem);
+            fclose(filein);
+            fclose(fileout);
+            destroy_bmp(&bmp);
+            return -1;
+        }
+        free_all(&mem);
 
         fclose(filein);
         fclose(fileout);
         destroy_bmp(&bmp);
+    }
+    else if (mode == DECOMPRESS_MODE) {
+        PJ pj;
+        MEM mem;
+        FILE* filein = fopen(filename_in, "rb");
+        FILE* fileout = fopen(filename_out, "wb");
+        mem_init(&mem);
+        if (filein == NULL) {
+            printf("Input file not found\n");
+            printf(HELP_MESSAGE);
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
+
+        int ret = read_pj(&pj, filein);
+        if (ret == MEMORY_ISSUE_ERROR_CODE) {
+            printf("Failed to allocate memory for the read file\n");
+            fclose(filein);
+            fclose(fileout);
+            return -1;
+        }
+        else if (ret == INVALID_FILE_ERROR_CODE) {
+            printf("The input file is invalid\n");
+            fclose(filein);
+            fclose(fileout);
+        }
+        printf("file size: %d\npadded height: %d\npadded width: %d\n", pj.file_size,
+                                                                       pj.new_height,
+                                                                       pj.new_width);
+        // allocating memory for decoded components
+        unsigned char* y = malloc(pj.new_height * pj.new_width);
+        unsigned char* cb = malloc(pj.new_height * pj.new_width);
+        unsigned char* cr = malloc(pj.new_height * pj.new_width);
+        append_pointer(&mem, y);
+        append_pointer(&mem, cb);
+        append_pointer(&mem, cr);
+        if (y == NULL || cb == NULL || cr == NULL) {
+            printf("Failed to allocate memory for decoded components\n");
+            free_all(&mem);
+            fclose(filein);
+            fclose(fileout);
+            destroy_pj(&pj);
+            return -1;
+        }
+        recover_component(pj.y_component, pj.y_size, y, pj.new_height, pj.new_width);
+        recover_component(pj.cb_component, pj.y_size, cb, pj.new_height / 2, pj.new_width / 2);
+        recover_component(pj.cr_component, pj.y_size, cr, pj.new_height / 2, pj.new_width / 2);
+        destroy_pj(&pj);
+        free_all(&mem);
+        fclose(filein);
+        fclose(fileout);
     }
     return 0;
 }

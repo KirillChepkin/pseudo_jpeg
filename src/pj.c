@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "constants.h"
 #include "pj.h"
 
@@ -74,3 +75,61 @@ int write_pj(PJ* pj, FILE* fileout) {
     }
     return 0;
 }
+
+int read_pj(PJ* pj, FILE* file) {
+    // this function allocates memory for the object
+    int ret = 1;
+    ret &= fread(&(pj -> file_size), sizeof(int), 1, file);
+
+    ret &= fread(&(pj -> y_size), sizeof(int), 1, file);
+    ret &= fread(&(pj -> cb_size), sizeof(int), 1, file);
+    ret &= fread(&(pj -> cr_size), sizeof(int), 1, file);
+
+    ret &= fread(&(pj -> height), sizeof(int), 1, file);
+    ret &= fread(&(pj -> width), sizeof(int), 1, file);
+
+    ret &= fread(&(pj -> new_height), sizeof(int), 1, file);
+    ret &= fread(&(pj -> new_width), sizeof(int), 1, file);
+    if (ret != 1) {
+        return INVALID_FILE_ERROR_CODE;
+    }
+
+    pj -> y_component = malloc(sizeof(int) * pj -> y_size);
+    pj -> cb_component = malloc(sizeof(int) * pj -> cb_size);
+    pj -> cr_component = malloc(sizeof(int) * pj -> cr_size);
+    if (pj -> y_component == NULL || pj -> cb_component == NULL || pj -> cr_component == NULL) {
+        return MEMORY_ISSUE_ERROR_CODE;
+    }
+    ret = fread(pj -> y_component, 1, pj -> y_size, file);
+    if (ret != pj -> y_size) {
+        return INVALID_FILE_ERROR_CODE;
+    }
+    /* printf("(%d)", pj -> y_component[0]); */
+    ret = fread(pj -> cb_component, 1, pj -> cb_size, file);
+    if (ret != pj -> cb_size) {
+        return INVALID_FILE_ERROR_CODE;
+    }
+    ret = fread(pj -> cr_component, 1, pj -> cr_size, file);
+    if (ret != pj -> cr_size) {
+        return INVALID_FILE_ERROR_CODE;
+    }
+    return 0;
+}
+
+void destroy_pj(PJ* pj) {
+    free(pj -> y_component);
+    free(pj -> cb_component);
+    free(pj -> cr_component);
+}
+
+/* int main() {
+    PJ pj;
+    FILE* file = fopen("outputs/output.pj", "rb");
+    read_pj(&pj, file);
+    fclose(file);
+    printf("%d %d %d %d\n", pj.file_size, pj.y_size, pj.cb_size, pj.cr_size);
+    for (int i = 0; i < 100; i++) {
+        printf("%d", pj.y_component[i]);
+    }
+    destroy_pj(&pj);
+} */
