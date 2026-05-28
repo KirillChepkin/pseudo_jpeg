@@ -155,3 +155,74 @@ void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char
     }
     /* for (int i = 0; i < ) */
 }
+
+int bmp_from_decompressed(BMP* bmp, int padded_height, int padded_width, int height, int width,
+                           unsigned char* y, unsigned char* cb, unsigned char* cr) {
+    // argument matrices have padded resolution
+    // cb and cr matrices have passed downsampling and their dimensions are half those of y
+    // this method will create a bmp without the color table
+    // info header of the file will be 40 pixels (least standard info header size)
+    // depth of the pixel will be set to be 24 bits
+    // height will be negative (starting from the top)
+    bmp -> info_header = NULL;
+    bmp -> pixel = NULL;
+    bmp -> color_tab = NULL;
+    bmp -> file_header[0] = 'B';
+    bmp -> file_header[1] = 'M';
+    *((int*)(bmp -> file_header + 6)) = 0;
+    *((int*)(bmp -> file_header + 10)) = 54;
+    bmp -> offset = 54;
+    bmp -> info_header = malloc(40);
+    if (bmp -> info_header == NULL) {
+        return MEMORY_ISSUE_ERROR_CODE;
+    }
+
+    bmp -> color_tab_size = 0;
+    bmp -> color_tab = NULL;
+
+    *((int*)(bmp -> info_header + 0)) = 40;
+    bmp -> info_header_size = 40;
+    *((int*)(bmp -> info_header + 4)) = width;
+    bmp -> width = width;
+    *((int*)(bmp -> info_header + 8)) = -1 * height;
+    bmp -> height = -1 * height;
+    *((int*)(bmp -> info_header + 12)) = 1;
+    *((int*)(bmp -> info_header + 14)) = 24;
+    bmp -> bit_depth = 24;
+    *((int*)(bmp -> info_header + 16)) = 0;
+
+    int row = get_row_size(bmp);
+    bmp -> pixel_data_size = 3 * height * row;
+    bmp -> pixel = malloc(bmp -> pixel_data_size);
+    *((int*)(bmp -> info_header + 20)) = bmp -> pixel_data_size;
+
+    if (bmp -> pixel == NULL) {
+        return MEMORY_ISSUE_ERROR_CODE;
+    }
+
+    // finally writing the file size
+    *((int*)(bmp -> file_header + 2)) = bmp -> pixel_data_size + bmp -> offset;
+
+    /* printf("%d %d %d\n", *((int*)(bmp -> file_header + 2)), bmp -> info_header[14], bmp -> pixel_data_size); */
+
+    unsigned char* pointer;
+    for (int i = 0; i < abs(height); i++) {
+        for (int j = 0; j < width; j++) {
+            pointer = get_pixel_pointer(bmp, i, j);
+
+            /* pointer[0] = 255;
+            pointer[1] = 0;
+            pointer[2] = 0; */
+
+            pointer[0] = y[RM_INDEX(padded_width, i, j)];
+            pointer[1] = y[RM_INDEX(padded_width, i, j)];
+            pointer[2] = y[RM_INDEX(padded_width, i, j)];
+
+            /* if (pointer == NULL) {
+                printf("NULL %d %d %d %d %d\n", i, j, bmp -> height, bmp -> width, bmp -> pixel);
+                return;
+            } */
+        }
+    }
+    return 0;
+}

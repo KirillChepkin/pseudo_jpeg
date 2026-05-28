@@ -199,8 +199,8 @@ int get_encoded_component(unsigned char* c, int height, int width, char* result,
     static double Q[8][8] = Q_MATRIX;
     int num = 0;
     precompute_cosines(cosine);
-    for (int i = 0; i <= (height / d) - 8; i += 8) {
-        for (int j = 0; j <= (width / d) - 8; j += 8) {
+    for (int i = 0; i <= (height / d) - 1; i += 8) {
+        for (int j = 0; j <= (width / d) - 1; j += 8) {
             normalize_block(c, block, height, width, i, j);
             compute_block_DCT(block, cosine, freq);
             quantize_block(freq, Q);

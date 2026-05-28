@@ -3,5 +3,5 @@
 make
 #./pj --help
 #./pj
-#./pj compress "samples/sample.bmp" "outputs/output.pj"
+./pj compress "samples/desert.bmp" "outputs/output.pj"
 ./pj decompress "outputs/output.pj" "samples/decompressed_image.bmp"

@@ -91,10 +91,10 @@ void reverse_DCT(double freq[8][8], char block[8][8], double cosine[8][8]) {
     }
 }
 
-void denormalize_block(char block[8][8], char result[8][8]) {
+void denormalize_block(char block[8][8], unsigned char result[8][8]) {
     for (int i = 0; i < 8; i++) {
         for (int j = 0; j < 8; j++) {
-            result[i][j] = (unsigned char)block[i][j] + 128;
+            result[i][j] = (unsigned char)((int)block[i][j] + 128);
         }
     }
 }
@@ -105,13 +105,13 @@ void recover_component(char* encoded_c, int length, unsigned char* c, int height
     // height and width must include the image padding
     static double freq[8][8];
     static char block[8][8];
-    static char result[8][8];
+    static unsigned char result[8][8];
     static double cosine[8][8];
     static double Q[8][8] = Q_MATRIX;
     precompute_cosines(cosine);
     int p = 0;
-    for (int i = 0; i < height - 8; i += 8) {
-        for (int j = 0; j < width - 8; j += 8) {
+    for (int i = 0; i < height; i += 8) {
+        for (int j = 0; j < width; j += 8) {
             if (p > length) {
                 assert(1 == 2);
             }
@@ -121,7 +121,7 @@ void recover_component(char* encoded_c, int length, unsigned char* c, int height
             denormalize_block(block, result);
             for (int x = 0; x < 8; x++) {
                 for (int y = 0; y < 8; y++) {
-                    c[RM_INDEX(width, i + x, j + y)] = block[x][y];
+                    c[RM_INDEX(width, i + x, j + y)] = result[x][y];
                 }
             }
         }

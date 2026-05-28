@@ -12,7 +12,6 @@
 double cosine[8][8];
 double block[8][8];
 double freq[8][8];
-double Q[8][8] = Q_MATRIX;
 
 int main(int argc, char** argv) {
     int mode;
@@ -44,8 +43,8 @@ int main(int argc, char** argv) {
     }
     char* filename_in = argv[2];
     char* filename_out = argv[3];
+    printf("%s -> %s\n", filename_in, filename_out);
     if (mode == COMPRESS_MODE) {
-        printf("%s -> %s\n", filename_in, filename_out);
         BMP bmp;
         PJ pj;
         MEM mem;
@@ -134,18 +133,18 @@ int main(int argc, char** argv) {
         downsample_component(cb, cb, new_height, new_width);
         downsample_component(cr, cr, new_height, new_width);
 
-        /* unsigned char* pixel = bmp.pixel;
+        unsigned char* pixel = bmp.pixel;
         FILE* file_debug = fopen("outputs/file_debug.bmp", "wb");
         for (int i = 0; i < abs(bmp.height); i++) {
             for (int j = 0; j < bmp.width; j++) {
                 pixel = get_pixel_pointer(&bmp, i, j);
-                pixel[0] = 0;
-                pixel[1] = 0;
-                pixel[2] = cr[RM_INDEX(new_width, i, j)];
+                pixel[0] = y[RM_INDEX(new_width, i, j)];
+                pixel[1] = y[RM_INDEX(new_width, i, j)];
+                pixel[2] = y[RM_INDEX(new_width, i, j)];
             }
         }
         ret = store_bmp(&bmp, file_debug);
-        fclose(file_debug); */
+        fclose(file_debug);
 
         char* result_y = malloc(new_width * new_height);
         char* result_cb = malloc(new_width * new_height);
@@ -211,6 +210,7 @@ int main(int argc, char** argv) {
     else if (mode == DECOMPRESS_MODE) {
         PJ pj;
         MEM mem;
+        BMP bmp;
         FILE* filein = fopen(filename_in, "rb");
         FILE* fileout = fopen(filename_out, "wb");
         mem_init(&mem);
@@ -234,13 +234,16 @@ int main(int argc, char** argv) {
             fclose(filein);
             fclose(fileout);
         }
-        printf("file size: %d\npadded height: %d\npadded width: %d\n", pj.file_size,
-                                                                       pj.new_height,
-                                                                       pj.new_width);
+        printf("file size: %d\npadded height: %d\npadded width: %d\noriginal height: %d\noriginal width: %d\n",
+                                                            pj.file_size,
+                                                            pj.new_height,
+                                                            pj.new_width,
+                                                            pj.height,
+                                                            pj.width);
         // allocating memory for decoded components
         unsigned char* y = malloc(pj.new_height * pj.new_width);
-        unsigned char* cb = malloc(pj.new_height * pj.new_width);
-        unsigned char* cr = malloc(pj.new_height * pj.new_width);
+        unsigned char* cb = malloc((pj.new_height * pj.new_width) / 4);
+        unsigned char* cr = malloc((pj.new_height * pj.new_width) / 4);
         append_pointer(&mem, y);
         append_pointer(&mem, cb);
         append_pointer(&mem, cr);
@@ -250,12 +253,54 @@ int main(int argc, char** argv) {
             fclose(filein);
             fclose(fileout);
             destroy_pj(&pj);
+            destroy_bmp(&bmp);
             return -1;
         }
+        // cb and cr component matrices have x0.5 height and width of the y component matrix
         recover_component(pj.y_component, pj.y_size, y, pj.new_height, pj.new_width);
         recover_component(pj.cb_component, pj.y_size, cb, pj.new_height / 2, pj.new_width / 2);
         recover_component(pj.cr_component, pj.y_size, cr, pj.new_height / 2, pj.new_width / 2);
         destroy_pj(&pj);
+
+        ret = bmp_from_decompressed(&bmp, pj.new_height, pj.new_width, pj.height, pj.width, y, cb, cr);
+        if (ret == MEMORY_ISSUE_ERROR_CODE) {
+            printf("Failed to allocate memory for decoded the bmp file object\n");
+            free_all(&mem);
+            fclose(filein);
+            fclose(fileout);
+            destroy_pj(&pj);
+            destroy_bmp(&bmp);
+            return -1;
+        }
+        ret = store_bmp(&bmp, fileout);
+        if (ret == INVALID_FILE_ERROR_CODE) {
+            printf("The program was unable to write the file\n");
+            free_all(&mem);
+            fclose(filein);
+            fclose(fileout);
+            destroy_pj(&pj);
+            destroy_bmp(&bmp);
+            return -1;
+        }
+        destroy_bmp(&bmp);
+
+        /* int c = 0;
+        for (int i = 0; i < pj.new_height - 1; i += 8) {
+            for (int j = 0; j < pj.new_width - 1; j += 8) {
+                // 2000, 4200
+                if (c == 4319) {
+                    for (int u = 0; u < 8; u++) {
+                        for (int v = 0; v < 8; v++) {
+                            printf("%7u", y[RM_INDEX(pj.new_width, i + u, j + v)]);
+                        }
+                        printf("\n");
+                    }
+                }
+                c++;
+            }
+        }
+        printf("%d", c); */
+
         free_all(&mem);
         fclose(filein);
         fclose(fileout);

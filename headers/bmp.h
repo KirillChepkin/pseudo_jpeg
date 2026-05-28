@@ -2,7 +2,6 @@
 #define INPUT_H
 
 #include <stdint.h>
-#include <stdio.h>
 
 typedef struct bmp_image_s {
     unsigned char file_header[14];
@@ -27,5 +26,7 @@ int is_valid_bmp(BMP* bmp);
 unsigned char* get_pixel_pointer(BMP* bmp, int row, int column);
 void get_components(BMP* bmp, unsigned char* y, unsigned char* cb, unsigned char* cr, int height, int width);
 void cut_resolution(BMP* bmp);
+int bmp_from_decompressed(BMP* bmp, int padded_height, int padded_width, int height, int width,
+                           unsigned char* y, unsigned char* cb, unsigned char* cr);
 
 #endif
